@@ -1,6 +1,6 @@
 module error-aws-lambda
 
-go 1.22
+go 1.22.0
 
 require (
 	github.com/Bancar/uala-bis-go-dependencies/v2 v2.3.23
