@@ -4,22 +4,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-)
 
-// TODO Add methods to access error fields
+	"github.com/Bancar/uala-bis-go-dependencies/v2/constants/errors"
+)
 
 type (
 	ServiceError struct {
 		cause  string
-		code   int
+		status *int
 		err    error
 		detail []string
 	}
 
-	APIResponse struct {
+	Response struct {
 		Cause  string   `json:"cause"`
-		Code   int      `json:"httpStatus"`
-		Detail []string `json:"detail"`
+		Status *int     `json:"httpStatus,omitempty"`
+		Detail []string `json:"detail,omitempty"`
 	}
 
 	ErrorMessage struct { //nolint: errname
@@ -37,13 +37,26 @@ func New(msg string) *ServiceError {
 	}
 }
 
+// TODO investigate better way to implement this
 func (se *ServiceError) Error() string {
-	// TODO improve for remove empty fields
-	return fmt.Sprintf("cause: %s, code: %d, err %s, detail: %s", se.cause, se.code, se.err.Error(), strings.Join(se.detail, ", "))
+	msg := fmt.Sprintf("cause: %s", se.cause)
+
+	if se.status != nil {
+		msg = msg + fmt.Sprintf(", status: %d", se.status)
+	}
+
+	if se.err != nil {
+		msg = msg + fmt.Sprintf(", err: %s", se.err.Error())
+	}
+	if len(se.detail) != 0 {
+		msg = msg + fmt.Sprintf(", detail: %s", strings.Join(se.detail, ", "))
+	}
+
+	return msg
 }
 
-func (se *ServiceError) Code(status int) *ServiceError {
-	se.code = status
+func (se *ServiceError) Status(status int) *ServiceError {
+	se.status = &status
 	return se
 }
 
@@ -52,17 +65,45 @@ func (se *ServiceError) Detail(detail ...string) *ServiceError {
 	return se
 }
 
-func (se *ServiceError) ErrMsg(err error) *ServiceError {
+func (se *ServiceError) Err(err error) *ServiceError {
 	se.err = err
 	return se
 }
 
 func (se *ServiceError) MarshalJSON() ([]byte, error) {
-	err := APIResponse{
+	err := Response{
 		Cause:  se.cause,
-		Code:   se.code,
+		Status: se.status,
 		Detail: se.detail,
 	}
 
 	return json.Marshal(err)
 }
+
+func AsErrorMessage(err error) error {
+	data, _ := json.Marshal(err)
+
+	return &errors.ErrorMessage{
+		Message: string(data),
+	}
+}
+
+//func (se *ServiceError) StatusUnauthorized() *ServiceError {
+//	se.status = http.StatusUnauthorized
+//	return se
+//}
+//
+//func (se *ServiceError) StatusForbidden() *ServiceError {
+//	se.status = http.StatusForbidden
+//	return se
+//}
+//
+//func (se *ServiceError) StatusNotFound() *ServiceError {
+//	se.status = http.StatusNotFound
+//	return se
+//}
+//
+//func (se *ServiceError) StatusInternalServerError() *ServiceError {
+//	se.status = http.StatusInternalServerError
+//	return se
+//}
